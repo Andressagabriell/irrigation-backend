@@ -20,8 +20,8 @@ console.log('🔧 ML_API_URL:', ML_API_URL);
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let latestData    = null;
-let climateData   = { rain_last_6h: 0, rain_next_6h: 0 };
+let latestData  = null;
+let climateData = { rain_last_6h: 0, rain_next_6h: 0 };
 
 async function fetchClimate() {
   try {
@@ -155,10 +155,12 @@ client.on('message', async (topic, message) => {
     }
 
   } catch (err) {
-    console.error('❌ Erro ao processar mensagem:', err.message);
-    console.error('❌ Stack:', err.stack);
-    console.error('❌ Response:', err.response?.data);
-    console.error('❌ Status:', err.response?.status);
+    console.error('❌ Erro ao processar mensagem:', JSON.stringify(err));
+    console.error('❌ Tipo:', typeof err);
+    console.error('❌ Keys:', JSON.stringify(Object.keys(err || {})));
+    console.error('❌ Response data:', JSON.stringify(err.response?.data));
+    console.error('❌ Response status:', err.response?.status);
+    console.error('❌ Code:', err.code);
   }
 });
 
