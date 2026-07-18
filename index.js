@@ -16,15 +16,13 @@ const PORT          = process.env.PORT || 3002;
 const SUPABASE_URL  = process.env.SUPABASE_URL;
 const SUPABASE_KEY  = process.env.SUPABASE_KEY;
 
-// Conecta ao Supabase
+console.log('🔧 ML_API_URL:', ML_API_URL);
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Guarda os últimos dados recebidos
 let latestData    = null;
 let climateData   = { rain_last_6h: 0, rain_next_6h: 0 };
 
-// Busca previsão do tempo — São Sebastião da Grama
-// Latitude: -21.7167, Longitude: -46.8167
 async function fetchClimate() {
   try {
     const url = 'https://api.open-meteo.com/v1/forecast' +
@@ -38,12 +36,10 @@ async function fetchClimate() {
     const now      = new Date();
     const currentHour = now.getHours();
 
-    // Chuva acumulada nas últimas 6h
     const last6h = hourly.precipitation
       .slice(Math.max(0, currentHour - 6), currentHour)
       .reduce((a, b) => a + b, 0);
 
-    // Chuva prevista nas próximas 6h
     const next6h = hourly.precipitation
       .slice(currentHour, currentHour + 6)
       .reduce((a, b) => a + b, 0);
@@ -59,11 +55,9 @@ async function fetchClimate() {
   }
 }
 
-// Busca clima ao iniciar e a cada 30 minutos
 fetchClimate();
 setInterval(fetchClimate, 30 * 60 * 1000);
 
-// Endpoint que o dashboard vai consultar
 app.get('/api/latest', (req, res) => {
   if (!latestData) {
     return res.status(404).json({ error: 'Nenhum dado recebido ainda.' });
@@ -71,7 +65,6 @@ app.get('/api/latest', (req, res) => {
   res.json(latestData);
 });
 
-// Endpoint para buscar histórico do Supabase
 app.get('/api/history', async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -87,7 +80,6 @@ app.get('/api/history', async (req, res) => {
   }
 });
 
-// Conecta ao broker MQTT
 const client = mqtt.connect(MQTT_BROKER);
 
 client.on('connect', () => {
@@ -97,12 +89,10 @@ client.on('connect', () => {
   });
 });
 
-// Recebe mensagens do ESP32
 client.on('message', async (topic, message) => {
   try {
     const sensorData = JSON.parse(message.toString());
 
-    // Combina dados do sensor com dados reais do clima
     const data = {
       ...sensorData,
       rain_last_6h: climateData.rain_last_6h,
@@ -116,8 +106,9 @@ client.on('message', async (topic, message) => {
     console.log(`   🌧️  Chuva últimas 6h:  ${data.rain_last_6h}mm`);
     console.log(`   🌦️  Chuva próximas 6h: ${data.rain_next_6h}mm`);
 
-    // Chama a API de ML
     console.log('\n🤖 Consultando modelo de ML...');
+    console.log('🔗 URL:', ML_API_URL);
+
     const mlResponse = await axios.post(ML_API_URL, data);
     const { decision, confidence } = mlResponse.data;
 
@@ -126,7 +117,6 @@ client.on('message', async (topic, message) => {
     console.log(`   📊 Confiança: ${(confidence * 100).toFixed(0)}%`);
     console.log('─'.repeat(40));
 
-    // Atualiza os últimos dados
     latestData = {
       soil_moisture:   data.soil_moisture,
       air_temperature: data.air_temperature,
@@ -138,7 +128,6 @@ client.on('message', async (topic, message) => {
       timestamp:  new Date().toISOString()
     };
 
-    // Salva no Supabase
     const { error } = await supabase
       .from('leituras')
       .insert([{
@@ -157,7 +146,6 @@ client.on('message', async (topic, message) => {
       console.log('💾 Dados salvos no Supabase!');
     }
 
-    // Envia comando para o ESP32
     if (decision === 'irrigar') {
       client.publish('irrigacao/comando', 'irrigar');
       console.log('💧 Comando enviado: IRRIGAR');
@@ -168,6 +156,9 @@ client.on('message', async (topic, message) => {
 
   } catch (err) {
     console.error('❌ Erro ao processar mensagem:', err.message);
+    console.error('❌ Stack:', err.stack);
+    console.error('❌ Response:', err.response?.data);
+    console.error('❌ Status:', err.response?.status);
   }
 });
 
