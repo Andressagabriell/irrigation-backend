@@ -109,7 +109,7 @@ client.on('message', async (topic, message) => {
     console.log('\n🤖 Consultando modelo de ML...');
     console.log('🔗 URL:', ML_API_URL);
 
-    const mlResponse = await axios.post(ML_API_URL, data);
+    const mlResponse = await axios.post(ML_API_URL, data, { timeout: 30000 });
     const { decision, confidence } = mlResponse.data;
 
     console.log(`\n✅ Decisão do sistema:`);
@@ -155,12 +155,10 @@ client.on('message', async (topic, message) => {
     }
 
   } catch (err) {
-    console.error('❌ Erro ao processar mensagem:', JSON.stringify(err));
-    console.error('❌ Tipo:', typeof err);
-    console.error('❌ Keys:', JSON.stringify(Object.keys(err || {})));
-    console.error('❌ Response data:', JSON.stringify(err.response?.data));
+    console.error('❌ Erro completo:', err.message || JSON.stringify(err));
+    console.error('❌ Codigo:', err.code);
     console.error('❌ Response status:', err.response?.status);
-    console.error('❌ Code:', err.code);
+    console.error('❌ Response data:', JSON.stringify(err.response?.data));
   }
 });
 
